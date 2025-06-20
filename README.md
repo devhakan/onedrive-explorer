@@ -1,307 +1,99 @@
 # 🚀 OneDrive Explorer CLI
 
-> **OneDrive kurumsal hesabınız için şıkır şıkır bir CLI aracı!**
+> OneDrive kurumsal hesabınız için basit ve etkili bir komut satırı aracı.
 
-OneDrive Explorer, Microsoft Graph API kullanarak OneDrive Business hesabınızdaki dosyaları arama, görüntüleme linkleri oluşturma ve indirme işlemlerini kolaylıkla yapmanızı sağlayan güçlü bir komut satırı aracıdır.
+OneDrive Explorer, Microsoft Graph API kullanarak OneDrive Business hesabınızdaki dosyaları listelemenizi ve aramanızı sağlar.
 
-## ✨ Özellikler
+## ✨ Temel Özellikler
 
-### 🔍 **Güçlü Arama Yetenekleri**
-- Hızlı dosya arama
-- Gelişmiş arama filtreleri (dosya türü, tarih, boyut)
-- İçerik tabanlı arama
-- Regex desteği
-
-### 🔗 **Link Yönetimi**
-- Görüntüleme linkleri oluşturma
-- Paylaşım linkleri oluşturma
-- Farklı izin seviyelerinde paylaşım
-- Organizasyon içi/herkese açık paylaşım seçenekleri
-
-### ⬇️ **Dosya İndirme**
-- Tek dosya indirme
-- Toplu indirme desteği
-- İndirme ilerlemesi takibi
-- Otomatik klasör oluşturma
-
-### 🎮 **Kullanıcı Dostu Arayüz**
-- İnteraktif menüler
-- Renkli çıktılar
-- Tablo formatında dosya listeleme
-- Emoji destekli görsel arayüz
-
-### 📊 **Bilgi Görüntüleme**
-- Detaylı dosya bilgileri
-- Kullanıcı profili
-- Drive quota bilgisi
-- Dosya meta verileri
+- **Dosya Listeleme**: Belirtilen bir klasör veya ana dizindeki dosyaları ve klasörleri listeler.
+- **Dosya Arama**: Anahtar kelime ile dosyaları arar.
 
 ## 🛠️ Kurulum
 
 ### Gereksinimler
-- Node.js 14.0.0 veya üzeri
-- npm veya yarn paket yöneticisi
+- Node.js v14.0.0 veya üzeri
+- npm
 - OneDrive Business hesabı
-- Microsoft Graph API access token
+- Microsoft Graph API `accessToken` ve `driveId`
 
 ### Kurulum Adımları
 
-1. **Projeyi klonlayın:**
-```bash
-git clone <repository-url>
-cd onedrive-explorer
-```
+1.  **Projeyi klonlayın:**
+    ```bash
+    git clone https://github.com/your-username/onedrive-explorer.git
+    cd onedrive-explorer
+    ```
 
-2. **Bağımlılıkları yükleyin:**
-```bash
-npm install
-```
+2.  **Bağımlılıkları yükleyin:**
+    ```bash
+    npm install
+    ```
 
-3. **Global olarak kurun (opsiyonel):**
-```bash
-npm install -g .
-```
-
-4. **Yapılandırmayı güncelleyin:**
-`config.js` dosyasında OneDrive access token ve diğer bilgileri güncelleyin.
+3.  **Yapılandırmayı güncelleyin:**
+    Projenin ana dizininde bulunan `config.js` dosyasını açın ve kendi bilgilerinizi girin.
 
 ## ⚙️ Yapılandırma
 
-`config.js` dosyasını düzenleyerek aşağıdaki ayarları yapılandırabilirsiniz:
+`config.js` dosyası projenin çalışması için kritik öneme sahiptir.
 
 ```javascript
+// config.js
 const config = {
-  // OneDrive access token (rclone'dan alınan)
-  accessToken: "your_access_token_here",
+  // Microsoft Graph API'den alınan geçerli bir Access Token.
+  // Bu token'ın 'Files.ReadWrite.All', 'Sites.Read.All' ve 'User.Read' gibi izinlere sahip olması gerekir.
+  accessToken: "PASTE_YOUR_ACCESS_TOKEN_HERE",
+
+  // OneDrive'ınızın Drive ID'si.
+  // Graph Explorer (https://developer.microsoft.com/en-us/graph/graph-explorer) üzerinden
+  // https://graph.microsoft.com/v1.0/me/drive sorgusu ile elde edilebilir.
+  driveId: "PASTE_YOUR_DRIVE_ID_HERE",
   
-  // Drive ID
-  driveId: "your_drive_id_here",
-  
-  // İndirme klasörü
-  downloadPath: "./downloads",
-  
-  // Sayfalama ayarları
-  pageSize: 50,
-  
-  // Desteklenen dosya türleri
-  supportedFileTypes: ['pdf', 'docx', 'xlsx', ...],
+  // Diğer ayarlar...
 };
+
+module.exports = config;
 ```
 
-### rclone Token'ını Kullanma
-
-Eğer rclone yapılandırmanız varsa, `rclone config show` komutuyla token bilgilerinizi alabilirsiniz:
-
-```bash
-rclone config show your_onedrive_remote
-```
+**ÖNEMLİ:** `accessToken` süresi dolabilir. Eğer `Insufficient privileges` gibi hatalar alıyorsanız, token'ınızı yenilemeniz gerekir.
 
 ## 🎯 Kullanım
 
-### Komut Satırı Kullanımı
+Proje, `node cli.js` komutu ile çalıştırılır.
 
-#### Temel Komutlar
+### Komutlar
 
-```bash
-# Yardım menüsü
-onedrive-explorer --help
+- **Dosyaları Listeleme:**
+  ```bash
+  # Ana dizini listeler
+  node cli.js list
 
-# Kullanıcı profili
-onedrive-explorer profile
+  # Belirli bir klasör ID'sini listeler
+  node cli.js list --folderId FOLDER_ID
+  ```
 
-# Dosya arama
-onedrive-explorer search "meeting notes"
+- **Dosya Arama:**
+  ```bash
+  # "rapor" kelimesini içeren dosyaları arar
+  node cli.js search "rapor"
+  ```
 
-# Gelişmiş arama
-onedrive-explorer advanced-search
+- **Yardım:**
+  ```bash
+  node cli.js --help
+  ```
 
-# Klasör listeleme
-onedrive-explorer list
+## ⚠️ Bilinen Sorunlar
 
-# İnteraktif mod
-onedrive-explorer interactive
-```
+Bu proje geliştirme aşamasındadır ve bazı bilinen sorunları vardır:
 
-#### Arama Örnekleri
-
-```bash
-# Basit arama
-onedrive-explorer search "budget"
-
-# Dosya türü ile arama
-onedrive-explorer search "presentation" --type pptx
-
-# Sonuç sayısını sınırlama
-onedrive-explorer search "report" --limit 10
-
-# Kısa komut kullanımı
-ode s "contract" -t pdf -l 20
-```
-
-### İnteraktif Mod
-
-En kolay kullanım şekli interaktif moddur:
-
-```bash
-onedrive-explorer interactive
-```
-
-Bu mod size aşağıdaki seçenekleri sunar:
-- 🔍 **Dosya Ara**: Hızlı arama yapın
-- 🔎 **Gelişmiş Arama**: Detaylı filtrelemeli arama
-- 📁 **Klasör Listele**: Klasör içeriklerini görüntüleyin
-- 👤 **Profil Bilgileri**: Hesap ve drive bilgilerinizi görün
-
-### Dosya İşlemleri
-
-Bir dosya seçtikten sonra yapabileceğiniz işlemler:
-
-- **📊 Dosya Bilgileri**: Detaylı meta veri görüntüleme
-- **🔗 Görüntüleme Linki**: Sadece görüntüleme için link oluşturma
-- **🔗 Paylaşım Linki**: Düzenleme yetkili link oluşturma
-- **⬇️ Dosyayı İndir**: Yerel bilgisayara indirme
-- **👁️ Tarayıcıda Aç**: Web tarayıcısında açma
-
-## 📚 API Referansı
-
-### OneDriveAPI Sınıfı
-
-Ana API sınıfının önemli metodları:
-
-```javascript
-const api = new OneDriveAPI();
-
-// Kullanıcı bilgileri
-await api.getUserInfo();
-
-// Dosya arama
-await api.searchFiles(query, fileType, pageSize);
-
-// Gelişmiş arama
-await api.advancedSearch(options);
-
-// Klasör listeleme
-await api.listFolder(folderId, pageSize);
-
-// Link oluşturma
-await api.createViewLink(fileId);
-await api.createShareLink(fileId, permission, scope);
-
-// Dosya indirme
-await api.downloadFile(fileId, fileName, downloadPath);
-
-// Dosya bilgileri
-await api.getFileInfo(fileId);
-```
-
-### Gelişmiş Arama Seçenekleri
-
-```javascript
-const searchOptions = {
-  query: 'arama terimi',
-  fileType: 'pdf',                    // Dosya uzantısı
-  modifiedAfter: '2024-01-01',        // Bu tarihten sonra
-  modifiedBefore: '2024-12-31',       // Bu tarihten önce
-  sizeMin: 1024,                      // Minimum boyut (bytes)
-  sizeMax: 10485760,                  // Maksimum boyut (bytes)
-  pageSize: 50                        // Sayfa boyutu
-};
-```
-
-## 🔧 Özelleştirme
-
-### Dosya Simgeleri
-
-`OneDriveAPI.getFileIcon()` metodunu düzenleyerek dosya türleri için farklı simgeler ekleyebilirsiniz:
-
-```javascript
-static getFileIcon(fileName) {
-  const extension = this.getFileType(fileName);
-  const icons = {
-    pdf: '📄',
-    docx: '📝',
-    xlsx: '📊',
-    // Yeni simgeler ekleyin...
-  };
-  return icons[extension] || '📄';
-}
-```
-
-### İndirme Klasörü
-
-İndirme klasörünü değiştirmek için `config.js` dosyasındaki `downloadPath` değerini güncelleyin:
-
-```javascript
-downloadPath: "~/Documents/OneDrive-Downloads"
-```
-
-### Sayfa Boyutu
-
-Varsayılan sayfa boyutunu değiştirmek için:
-
-```javascript
-pageSize: 100  // Daha fazla sonuç
-```
-
-## 🛡️ Güvenlik
-
-### Token Güvenliği
-
-- Access token'ınızı güvenli tutun
-- Token'ı version control sistemine yüklemeyin
-- Düzenli olarak token'ı yenileyin
-- Refresh token'ı kullanarak otomatik yenileme yapın
-
-### İzinler
-
-Bu araç aşağıdaki Microsoft Graph izinlerini kullanır:
-- `Files.Read`: Dosya okuma
-- `Files.Read.All`: Tüm dosyaları okuma
-- `Files.ReadWrite`: Dosya okuma/yazma
-- `Files.ReadWrite.All`: Tüm dosyalara okuma/yazma
-- `Sites.Read.All`: Site okuma
-
-## 🐛 Sorun Giderme
-
-### Yaygın Hatalar
-
-**Token Geçersiz:**
-```
-❌ 401 Unauthorized
-```
-**Çözüm:** Access token'ınızı yenileyin veya refresh token kullanarak yeni token alın.
-
-**Dosya Bulunamadı:**
-```
-❌ 404 Not Found
-```
-**Çözüm:** Dosya ID'sini kontrol edin veya dosyanın silinip silinmediğini kontrol edin.
-
-**İzin Hatası:**
-```
-❌ 403 Forbidden
-```
-**Çözüm:** Gerekli Graph API izinlerinin verildiğinden emin olun.
-
-### Debug Modu
-
-Detaylı hata mesajları için:
-
-```bash
-DEBUG=* onedrive-explorer search "test"
-```
-
-### Log Dosyaları
-
-Hata logları `./logs/` klasöründe saklanır.
+1.  **Yetkilendirme Hataları**: `accessToken` geçerli değilse veya yeterli yetkilere sahip değilse, `Insufficient privileges` hatası alabilirsiniz. Token'ınızın güncel ve doğru kapsamlara sahip olduğundan emin olun.
+2.  **Arama Hataları**: Microsoft Graph API, bazı özel karakterler içeren veya boş arama sorgularında `A potentially dangerous Request.Path` hatası döndürebilir.
+3.  **İnteraktif Mod**: İnteraktif mod (`interactive` komutu) şu anda bozuktur ve `inquirer.prompt is not a function` hatası vermektedir. Bu özellik gelecek versiyonlarda düzeltilecektir.
 
 ## 🤝 Katkıda Bulunma
 
-1. Fork yapın
-2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
-3. Commit yapın (`git commit -m 'Add some amazing feature'`)
-4. Push yapın (`git push origin feature/amazing-feature`)
-5. Pull Request açın
+Katkılarınız için açığım! Lütfen bir pull request açmaktan çekinmeyin.
 
 ## 📋 Yapılacaklar
 
@@ -320,25 +112,13 @@ Hata logları `./logs/` klasöründe saklanır.
 
 MIT License - Detaylar için `LICENSE` dosyasına bakın.
 
-## 👨‍💻 Geliştirici
-
-**Hakan Özdemir**
-- 📧 Email: hakan.ozdemir@uskudar.edu.tr
-- 🐙 GitHub: [@hakanozdmr]
-
-## 🙏 Teşekkürler
-
-- Microsoft Graph API ekibine
-- Node.js topluluğuna
-- Açık kaynak katkıda bulunanlara
-
 ---
 
 ### 🚀 Hemen başlayın:
 
 ```bash
 npm install
-onedrive-explorer interactive
+node cli.js interactive
 ```
 
 **Şıkır şıkır dosya yönetiminin tadını çıkarın!** 🎉 
