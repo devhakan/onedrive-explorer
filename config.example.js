@@ -24,7 +24,9 @@ const config = {
   // === Opsiyonel Ayarlar ===
 
   // Token'ın son geçerlilik tarihi (UTC formatında).
-  // Otomatik yenileme mantığı için kullanılır.
+  // !! UYARI: Bu değer, token yenileme işlemi sırasında program tarafından
+  // !! otomatik olarak güncellenir. İlk kurulum dışında manuel olarak
+  // !! değiştirmeniz önerilmez.
   tokenExpiry: "2025-01-01T00:00:00Z",
 
   // İndirilecek dosyaların kaydedileceği varsayılan klasör.
