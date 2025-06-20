@@ -1,0 +1,40 @@
+{
+  "name": "onedrive-explorer",
+  "version": "1.0.0",
+  "description": "OneDrive kurumsal hesap için güçlü CLI aracı - dosya arama, görüntüleme ve indirme",
+  "main": "index.js",
+  "bin": {
+    "onedrive-explorer": "./cli.js",
+    "ode": "./cli.js"
+  },
+  "scripts": {
+    "start": "node cli.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "onedrive",
+    "microsoft-graph",
+    "cli",
+    "file-explorer",
+    "download",
+    "search"
+  ],
+  "author": "Hakan Özdemir",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bytes": "^3.1.2",
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "dotenv": "^16.5.0",
+    "inquirer": "^9.2.0",
+    "moment": "^2.29.4",
+    "node-fetch": "^2.7.0",
+    "open": "^8.4.0",
+    "ora": "^5.4.1",
+    "table": "^6.8.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
