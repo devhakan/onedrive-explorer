@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
+// .env dosyasını yükle
+require('dotenv').config();
+
 const { program } = require('commander');
-const inquirer = require('inquirer').default;
+const inquirer = require('inquirer');
 const chalk = require('chalk');
 const ora = require('ora');
 const { table } = require('table');
 const moment = require('moment');
 const open = require('open');
 const OneDriveAPI = require('./lib/onedrive-api');
+const Utils = require('./lib/utils');
 
 // Moment.js Türkçe dil desteği
 moment.locale('tr');
@@ -17,43 +21,34 @@ const api = new OneDriveAPI();
 // CLI bilgileri
 program
   .name('onedrive-explorer')
-  .description('🚀 OneDrive Kurumsal Hesap Explorer - Şıkır şıkır dosya yönetimi!')
+  .description('🚀 OneDrive Kurumsal Hesap Explorer - Dosya arama, listeleme ve indirme!')
   .version('1.0.0');
 
 /**
- * Kullanıcı bilgilerini göster
+ * Drive bilgilerini göster (hesap teyiti için)
  */
 program
-  .command('profile')
-  .alias('p')
-  .description('👤 Kullanıcı profil bilgilerini göster')
+  .command('drive-info')
+  .alias('di')
+  .description('💾 Drive bilgilerini göster (hesap teyiti)')
   .action(async () => {
-    const spinner = ora('Kullanıcı bilgileri getiriliyor...').start();
-    
+    const spinner = ora('Alan bilgileri getiriliyor...').start();
     try {
-      const [userInfo, driveInfo] = await Promise.all([
-        api.getUserInfo(),
-        api.getDriveInfo()
-      ]);
-      
-      spinner.succeed('✅ Bilgiler başarıyla alındı!');
-      
-      console.log('\n' + chalk.blue.bold('👤 KULLANICI BİLGİLERİ'));
-      console.log(chalk.green(`📧 Email: ${userInfo.mail || userInfo.userPrincipalName}`));
-      console.log(chalk.green(`👨‍💼 Ad Soyad: ${userInfo.displayName}`));
-      console.log(chalk.green(`🏢 Şirket: ${userInfo.companyName || 'Belirtilmemiş'}`));
-      console.log(chalk.green(`📱 Telefon: ${userInfo.mobilePhone || 'Belirtilmemiş'}`));
-      
+      const driveInfo = await api.getDriveInfo();
+      const email = api.getEmailFromToken();
+      const configName = api.getEmailFromRcloneConfig();
+      spinner.succeed('✅ Bilgiler alındı!');
       console.log('\n' + chalk.blue.bold('💾 DRIVE BİLGİLERİ'));
-      console.log(chalk.cyan(`📁 Drive Adı: ${driveInfo.name}`));
-      console.log(chalk.cyan(`📊 Tip: ${driveInfo.driveType}`));
-      console.log(chalk.cyan(`💽 Toplam Alan: ${OneDriveAPI.formatFileSize(driveInfo.quota?.total || 0)}`));
-      console.log(chalk.cyan(`📦 Kullanılan Alan: ${OneDriveAPI.formatFileSize(driveInfo.quota?.used || 0)}`));
-      console.log(chalk.cyan(`🆓 Boş Alan: ${OneDriveAPI.formatFileSize((driveInfo.quota?.total || 0) - (driveInfo.quota?.used || 0))}`));
-      
+      console.log(chalk.cyan(`📧 Hesap: ${email}`));
+      console.log(chalk.cyan(`🔧 Config: ${configName}`));
+      console.log(chalk.cyan(`💽 Toplam Alan: ${Utils.formatFileSize(driveInfo.total)}`));
+      console.log(chalk.cyan(`📦 Kullanılan Alan: ${Utils.formatFileSize(driveInfo.used)}`));
+      console.log(chalk.cyan(`🆓 Boş Alan: ${Utils.formatFileSize(driveInfo.remaining)}`));
+      console.log(chalk.green('\n✅ Doğru hesaba bağlanmış görünüyorsunuz!'));
     } catch (error) {
       spinner.fail('❌ Hata oluştu!');
       console.error(chalk.red(error.message));
+      console.log(chalk.yellow('\n💡 Token\'ınızın geçerli olduğundan emin olun.'));
     }
   });
 
@@ -63,27 +58,23 @@ program
 program
   .command('search <query>')
   .alias('s')
-  .description('🔍 Dosyalarda arama yap')
-  .option('-t, --type <type>', 'Dosya türü filtresi (pdf, docx, xlsx, vb.)')
-  .option('-l, --limit <number>', 'Sonuç sayısı limiti', '50')
+  .description('🔍 Dosya ve klasör adında arama yap (maksimum 10 sonuç)')
+  .option('-q, --quiet', 'Sadece sonuçları göster, interaktif menü gösterme')
   .action(async (query, options) => {
     const spinner = ora(`"${query}" için arama yapılıyor...`).start();
-    
     try {
-      const results = await api.searchFiles(query, options.type, parseInt(options.limit));
-      
-      spinner.succeed(`✅ ${results.total} dosya bulundu!`);
-      
+      const results = await api.searchFiles(query, null, 10);
+      spinner.succeed(`✅ ${results.total} sonuç bulundu!`);
       if (results.items.length === 0) {
-        console.log(chalk.yellow('🤷‍♂️ Hiç dosya bulunamadı.'));
+        console.log(chalk.yellow('🤷‍♂️ Hiç dosya veya klasör bulunamadı.'));
         return;
       }
-      
       displayFileTable(results.items);
       
-      // İnteraktif seçim menüsü
-      await showFileMenu(results.items);
-      
+      // Quiet mode ise interaktif menü gösterme
+      if (!options.quiet) {
+        await showFileMenu(results.items, [], true);
+      }
     } catch (error) {
       spinner.fail('❌ Arama başarısız!');
       console.error(chalk.red(error.message));
@@ -111,14 +102,16 @@ program
           name: 'fileType',
           message: '📁 Dosya türü:',
           choices: [
+            { name: '⬅️ GERİ', value: 'back' },
             { name: 'Tümü', value: null },
+            { name: '📁 Klasörler', value: 'folder' },
+            { name: '🗜️ Arşivler (.tar, .tar.gz, .zip, .rar)', value: 'archive' },
             { name: '📄 PDF', value: 'pdf' },
             { name: '📝 Word (docx)', value: 'docx' },
             { name: '📊 Excel (xlsx)', value: 'xlsx' },
             { name: '📊 PowerPoint (pptx)', value: 'pptx' },
             { name: '🖼️ Resimler (jpg, png)', value: 'jpg' },
-            { name: '🎬 Videolar (mp4)', value: 'mp4' },
-            { name: '🗜️ Arşivler (zip)', value: 'zip' }
+            { name: '🎬 Videolar (mp4)', value: 'mp4' }
           ]
         },
         {
@@ -201,7 +194,6 @@ program
   .description('🎮 İnteraktif mod - Menü tabanlı kullanım')
   .action(async () => {
     console.log(chalk.blue.bold('\n🚀 OneDrive Explorer - İnteraktif Mod\n'));
-    
     while (true) {
       try {
         const { action } = await inquirer.prompt([
@@ -213,19 +205,16 @@ program
               { name: '🔍 Dosya Ara', value: 'search' },
               { name: '🔎 Gelişmiş Arama', value: 'advancedSearch' },
               { name: '📁 Klasör Listele', value: 'list' },
-              { name: '👤 Profil Bilgileri', value: 'profile' },
+              { name: '💾 Drive Bilgileri', value: 'driveInfo' },
               { name: '🚪 Çıkış', value: 'exit' }
             ]
           }
         ]);
-        
         if (action === 'exit') {
           console.log(chalk.green('\n👋 Görüşürüz! OneDrive Explorer kapatılıyor...'));
           break;
         }
-        
         await executeInteractiveAction(action);
-        
       } catch (error) {
         console.error(chalk.red(`❌ Hata: ${error.message}`));
       }
@@ -246,10 +235,10 @@ function displayFileTable(items) {
   ];
   
   items.forEach(item => {
-    const icon = item.folder ? '📁' : OneDriveAPI.getFileIcon(item.name);
-    const size = item.folder ? '-' : OneDriveAPI.formatFileSize(item.size || 0);
+    const icon = item.folder ? '📁' : Utils.getFileIcon(item.name);
+    const size = item.folder ? '-' : Utils.formatFileSize(item.size || 0);
     const modified = moment(item.lastModifiedDateTime).fromNow();
-    const type = item.folder ? 'Klasör' : OneDriveAPI.getFileType(item.name).toUpperCase();
+    const type = item.folder ? 'Klasör' : Utils.getFileCategory(item.name).toUpperCase();
     
     tableData.push([
       `${icon} ${item.name}`,
@@ -281,25 +270,69 @@ function displayFileTable(items) {
 }
 
 /**
- * Dosya menüsünü göster
+ * Dosya menüsünü göster (klasör geçmişi ile)
  */
-async function showFileMenu(items) {
+async function showFileMenu(items, history = [], isSearchResult = false) {
   if (items.length === 0) return;
+  
+  // Dosya seçenekleri
+  let choices = [
+    ...items.map((item, index) => ({
+      name: `${item.folder ? '📁' : Utils.getFileIcon(item.name)} ${item.name}`,
+      value: index
+    }))
+  ];
+  
+  // Geçmiş varsa "GERİ" seçeneği, arama sonucuysa "Ana Menüye Dön" seçeneği
+  if (history.length > 0) {
+    choices = [
+      { name: '⬅️ GERİ', value: 'back' },
+      ...choices
+    ];
+  } else if (isSearchResult) {
+    choices = [
+      { name: '🏠 Ana Menüye Dön', value: 'main-menu' },
+      ...choices
+    ];
+  }
   
   const { selectedFile } = await inquirer.prompt([
     {
       type: 'list',
       name: 'selectedFile',
       message: '📝 Bir dosya seçin:',
-      choices: [
-        ...items.map((item, index) => ({
-          name: `${item.folder ? '📁' : OneDriveAPI.getFileIcon(item.name)} ${item.name}`,
-          value: index
-        })),
-        { name: '🔙 Geri', value: -1 }
-      ]
+      choices: choices
     }
   ]);
+  
+  if (selectedFile === 'back') {
+    // Önceki klasöre geri dön
+    const previousFolder = history.pop();
+    if (previousFolder) {
+      const spinner = ora('Önceki klasöre dönülüyor...').start();
+      try {
+        const results = await api.listFolder(previousFolder.id);
+        spinner.succeed('✅ Önceki klasöre dönüldü!');
+        
+        if (results.items.length > 0) {
+          displayFileTable(results.items);
+          await showFileMenu(results.items, history);
+        } else {
+          console.log(chalk.yellow('📂 Klasör boş.'));
+        }
+      } catch (error) {
+        spinner.fail('❌ Önceki klasöre dönülemedi!');
+        console.error(chalk.red(error.message));
+      }
+    }
+    return;
+  }
+  
+  if (selectedFile === 'main-menu') {
+    // Ana menüye dön
+    console.log(chalk.green('🏠 Ana menüye dönülüyor...'));
+    return 'main-menu';
+  }
   
   if (selectedFile === -1) return;
   
@@ -314,9 +347,14 @@ async function showFileMenu(items) {
       
       if (results.items.length > 0) {
         displayFileTable(results.items);
-        await showFileMenu(results.items);
+        // Geçmişe mevcut klasörü ekle
+        const newHistory = [...history, { id: file.id, name: file.name }];
+        await showFileMenu(results.items, newHistory);
       } else {
         console.log(chalk.yellow('📂 Klasör boş.'));
+        // Boş klasörde de geçmişi koru
+        const newHistory = [...history, { id: file.id, name: file.name }];
+        await showFileMenu(results.items, newHistory);
       }
     } catch (error) {
       spinner.fail('❌ Klasör açılamadı!');
@@ -338,13 +376,12 @@ async function showFileActionMenu(file) {
       name: 'action',
       message: `📄 "${file.name}" için ne yapmak istiyorsunuz?`,
       choices: [
+        { name: '⬅️ GERİ', value: 'back' },
         { name: '📊 Dosya Bilgileri', value: 'info' },
         { name: '🔗 Görüntüleme Linki Oluştur', value: 'viewLink' },
-        { name: '🎬 Önizleme Linki Oluştur (Herkes)', value: 'previewLink' },
         { name: '🔗 Paylaşım Linki Oluştur', value: 'shareLink' },
         { name: '⬇️ Dosyayı İndir', value: 'download' },
-        { name: '👁️ Tarayıcıda Aç', value: 'preview' },
-        { name: '🔙 Geri', value: 'back' }
+        { name: '👁️ Tarayıcıda Aç', value: 'preview' }
       ]
     }
   ]);
@@ -367,61 +404,6 @@ async function showFileActionMenu(file) {
         console.log(chalk.green(`\n🔗 Görüntüleme Linki:\n${viewLink.link.webUrl}\n`));
         break;
         
-      case 'previewLink':
-        spinner.start('Önizleme linki oluşturuluyor...');
-        try {
-          const previewInfo = await api.getPreviewInfo(file.id);
-          spinner.succeed('✅ Önizleme linki oluşturuldu!');
-          
-          console.log(chalk.green('\n🎬 ÖNİZLEME LİNKİ OLUŞTURULDU!'));
-          console.log(chalk.cyan(`📄 Dosya: ${previewInfo.fileName}`));
-          console.log(chalk.cyan(`📊 Boyut: ${OneDriveAPI.formatFileSize(previewInfo.fileSize)}`));
-          console.log(chalk.cyan(`📁 Tür: ${previewInfo.fileType.toUpperCase()}`));
-          
-          if (previewInfo.embedUrl) {
-            const linkTitle = previewInfo.linkType === 'anonymous' ? '🌐 Herkes İçin Önizleme Linki' : '🔗 Organizasyon İçi Link';
-            console.log(chalk.green(`\n${linkTitle}:`));
-            console.log(chalk.white(`${previewInfo.embedUrl}`));
-          }
-          
-          if (previewInfo.previewUrl) {
-            console.log(chalk.green(`\n🎬 Direkt Önizleme:`));
-            console.log(chalk.white(`${previewInfo.previewUrl}`));
-          }
-          
-          if (previewInfo.mimeType) {
-            console.log(chalk.yellow(`\n📄 MIME Türü: ${previewInfo.mimeType}`));
-            
-            // Dosya türüne göre bilgi ver
-            if (previewInfo.mimeType.includes('video')) {
-              console.log(chalk.blue('🎬 Bu link video player ile açılacak'));
-            } else if (previewInfo.mimeType.includes('pdf')) {
-              console.log(chalk.blue('📄 Bu link PDF viewer ile açılacak'));
-            } else if (previewInfo.mimeType.includes('word') || previewInfo.mimeType.includes('document')) {
-              console.log(chalk.blue('📝 Bu link Office Online ile açılacak'));
-            } else if (previewInfo.mimeType.includes('sheet') || previewInfo.mimeType.includes('excel')) {
-              console.log(chalk.blue('📊 Bu link Excel Online ile açılacak'));
-            } else if (previewInfo.mimeType.includes('presentation') || previewInfo.mimeType.includes('powerpoint')) {
-              console.log(chalk.blue('📊 Bu link PowerPoint Online ile açılacak'));
-            } else {
-              console.log(chalk.blue('🌐 Bu link tarayıcıda açılacak'));
-            }
-          }
-          
-          if (previewInfo.linkType === 'anonymous') {
-            console.log(chalk.yellow('\n⏰ Bu link geçici olup, yaklaşık 1 saat geçerlidir.'));
-            console.log(chalk.yellow('🌐 Link herkes tarafından erişilebilir (anonymous).'));
-          } else {
-            console.log(chalk.yellow('\n🏢 Bu link sadece organizasyon üyeleri tarafından erişilebilir.'));
-          }
-          console.log('');
-        } catch (linkError) {
-          spinner.fail('❌ Önizleme linki oluşturulamadı!');
-          console.log(chalk.red(`Hata: ${linkError.message}`));
-          console.log(chalk.yellow('\n💡 Alternatif olarak normal görüntüleme linki deneyin.'));
-        }
-        break;
-        
       case 'shareLink':
         const { permission } = await inquirer.prompt([
           {
@@ -429,6 +411,7 @@ async function showFileActionMenu(file) {
             name: 'permission',
             message: '🔐 Paylaşım yetkisi:',
             choices: [
+              { name: '⬅️ GERİ', value: 'back' },
               { name: '👁️ Sadece Görüntüleme', value: 'read' },
               { name: '✏️ Düzenleme', value: 'write' }
             ]
@@ -495,7 +478,7 @@ async function showFileActionMenu(file) {
 function displayFileInfo(file) {
   console.log('\n' + chalk.blue.bold('📊 DOSYA BİLGİLERİ'));
   console.log(chalk.cyan(`📄 Ad: ${file.name}`));
-  console.log(chalk.cyan(`📊 Boyut: ${OneDriveAPI.formatFileSize(file.size || 0)}`));
+  console.log(chalk.cyan(`📊 Boyut: ${Utils.formatFileSize(file.size || 0)}`));
   console.log(chalk.cyan(`📅 Oluşturulma: ${moment(file.createdDateTime).format('DD.MM.YYYY HH:mm')}`));
   console.log(chalk.cyan(`📅 Değiştirilme: ${moment(file.lastModifiedDateTime).format('DD.MM.YYYY HH:mm')}`));
   console.log(chalk.cyan(`👤 Oluşturan: ${file.createdBy?.user?.displayName || 'Bilinmiyor'}`));
@@ -519,7 +502,7 @@ function displayFileInfo(file) {
 async function executeInteractiveAction(action) {
   switch (action) {
     case 'search':
-      const { query, fileType, limit } = await inquirer.prompt([
+      const searchPrompt = await inquirer.prompt([
         {
           type: 'input',
           name: 'query',
@@ -531,11 +514,16 @@ async function executeInteractiveAction(action) {
           name: 'fileType',
           message: '📁 Dosya türü filtresi:',
           choices: [
+            { name: '⬅️ GERİ', value: 'back' },
             { name: 'Tümü', value: null },
-            ...['pdf', 'docx', 'xlsx', 'pptx', 'jpg', 'mp4', 'zip'].map(type => ({
-              name: type.toUpperCase(),
-              value: type
-            }))
+            { name: '📁 Klasörler', value: 'folder' },
+            { name: '🗜️ Arşivler (.tar, .tar.gz, .zip, .rar)', value: 'archive' },
+            { name: '📄 PDF', value: 'pdf' },
+            { name: '📝 Word (docx)', value: 'docx' },
+            { name: '📊 Excel (xlsx)', value: 'xlsx' },
+            { name: '📊 PowerPoint (pptx)', value: 'pptx' },
+            { name: '🖼️ Resimler (jpg, png)', value: 'jpg' },
+            { name: '🎬 Videolar (mp4)', value: 'mp4' }
           ]
         },
         {
@@ -546,14 +534,21 @@ async function executeInteractiveAction(action) {
         }
       ]);
       
-      const spinner = ora(`"${query}" için arama yapılıyor...`).start();
+      if (searchPrompt.fileType === 'back') {
+        return; // Ana menüye geri dön
+      }
+      
+      const spinner = ora(`"${searchPrompt.query}" için arama yapılıyor...`).start();
       try {
-        const results = await api.searchFiles(query, fileType, limit);
+        const results = await api.searchFiles(searchPrompt.query, searchPrompt.fileType, searchPrompt.limit);
         spinner.succeed(`✅ ${results.total} dosya bulundu!`);
         
         if (results.items.length > 0) {
           displayFileTable(results.items);
-          await showFileMenu(results.items);
+          const menuResult = await showFileMenu(results.items, [], true);
+          if (menuResult === 'main-menu') {
+            return; // Ana menüye dön
+          }
         } else {
           console.log(chalk.yellow('🤷‍♂️ Hiç dosya bulunamadı.'));
         }
@@ -564,12 +559,78 @@ async function executeInteractiveAction(action) {
       break;
       
     case 'advancedSearch':
-      // Gelişmiş arama komutunu çalıştır
-      await program.parseAsync(['node', 'cli.js', 'advanced-search']);
+      const advancedPrompt = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'query',
+          message: '🔍 Arama terimi:',
+          validate: input => input.length > 0 || 'Arama terimi gerekli!'
+        },
+        {
+          type: 'list',
+          name: 'fileType',
+          message: '📁 Dosya türü:',
+          choices: [
+            { name: '⬅️ GERİ', value: 'back' },
+            { name: 'Tümü', value: null },
+            { name: '📁 Klasörler', value: 'folder' },
+            { name: '🗜️ Arşivler (.tar, .tar.gz, .zip, .rar)', value: 'archive' },
+            { name: '📄 PDF', value: 'pdf' },
+            { name: '📝 Word (docx)', value: 'docx' },
+            { name: '📊 Excel (xlsx)', value: 'xlsx' },
+            { name: '📊 PowerPoint (pptx)', value: 'pptx' },
+            { name: '🖼️ Resimler (jpg, png)', value: 'jpg' },
+            { name: '🎬 Videolar (mp4)', value: 'mp4' }
+          ]
+        },
+        {
+          type: 'input',
+          name: 'modifiedAfter',
+          message: '📅 Bu tarihten sonra değiştirilmiş (YYYY-MM-DD) [opsiyonel]:',
+          validate: input => !input || moment(input, 'YYYY-MM-DD', true).isValid() || 'Geçerli tarih formatı: YYYY-MM-DD'
+        },
+        {
+          type: 'number',
+          name: 'limit',
+          message: '🔢 Maksimum sonuç sayısı:',
+          default: 50,
+          validate: input => input > 0 || 'Pozitif sayı girin!'
+        }
+      ]);
+      
+      if (advancedPrompt.fileType === 'back') {
+        return; // Ana menüye geri dön
+      }
+      
+      const advancedSpinner = ora('Gelişmiş arama yapılıyor...').start();
+      try {
+        const searchOptions = {
+          query: advancedPrompt.query,
+          fileType: advancedPrompt.fileType,
+          modifiedAfter: advancedPrompt.modifiedAfter || null,
+          pageSize: advancedPrompt.limit
+        };
+        
+        const results = await api.advancedSearch(searchOptions);
+        advancedSpinner.succeed(`✅ ${results.total} dosya bulundu!`);
+        
+        if (results.items.length > 0) {
+          displayFileTable(results.items);
+          const menuResult = await showFileMenu(results.items, [], true);
+          if (menuResult === 'main-menu') {
+            return; // Ana menüye dön
+          }
+        } else {
+          console.log(chalk.yellow('🤷‍♂️ Arama kriterlerinize uygun dosya bulunamadı.'));
+        }
+      } catch (error) {
+        advancedSpinner.fail('❌ Arama başarısız!');
+        throw error;
+      }
       break;
       
     case 'list':
-      const { folderId, listLimit } = await inquirer.prompt([
+      const listPrompt = await inquirer.prompt([
         {
           type: 'input',
           name: 'folderId',
@@ -581,17 +642,27 @@ async function executeInteractiveAction(action) {
           name: 'listLimit',
           message: '🔢 Maksimum öğe sayısı:',
           default: 50
+        },
+        {
+          type: 'confirm',
+          name: 'continue',
+          message: '📂 Klasörü listele?',
+          default: true
         }
       ]);
       
+      if (!listPrompt.continue) {
+        return; // Ana menüye geri dön
+      }
+      
       const listSpinner = ora('Klasör içeriği getiriliyor...').start();
       try {
-        const results = await api.listFolder(folderId === 'root' ? 'root' : folderId, listLimit);
+        const results = await api.listFolder(listPrompt.folderId === 'root' ? 'root' : listPrompt.folderId, listPrompt.listLimit);
         listSpinner.succeed(`✅ ${results.total} öğe listelendi!`);
         
         if (results.items.length > 0) {
           displayFileTable(results.items);
-          await showFileMenu(results.items);
+          await showFileMenu(results.items, []);
         } else {
           console.log(chalk.yellow('📂 Klasör boş.'));
         }
@@ -601,9 +672,24 @@ async function executeInteractiveAction(action) {
       }
       break;
       
-    case 'profile':
-      // Profil komutunu çalıştır
-      await program.parseAsync(['node', 'cli.js', 'profile']);
+    case 'driveInfo':
+      const driveSpinner = ora('Alan bilgileri getiriliyor...').start();
+      try {
+        const driveInfo = await api.getDriveInfo();
+        const email = api.getEmailFromToken();
+        const configName = api.getEmailFromRcloneConfig();
+        driveSpinner.succeed('✅ Bilgiler alındı!');
+        console.log('\n' + chalk.blue.bold('💾 DRIVE BİLGİLERİ'));
+        console.log(chalk.cyan(`📧 Hesap: ${email}`));
+        console.log(chalk.cyan(`🔧 Config: ${configName}`));
+        console.log(chalk.cyan(`💽 Toplam Alan: ${Utils.formatFileSize(driveInfo.total)}`));
+        console.log(chalk.cyan(`📦 Kullanılan Alan: ${Utils.formatFileSize(driveInfo.used)}`));
+        console.log(chalk.cyan(`🆓 Boş Alan: ${Utils.formatFileSize(driveInfo.remaining)}`));
+        console.log(chalk.green('\n✅ Doğru hesaba bağlanmış görünüyorsunuz!'));
+      } catch (error) {
+        driveSpinner.fail('❌ Hata oluştu!');
+        console.error(chalk.red(error.message));
+      }
       break;
   }
 }
@@ -614,11 +700,7 @@ process.on('unhandledRejection', (error) => {
   process.exit(1);
 });
 
-// Token geçerlilik kontrolü
-if (!api.isTokenValid()) {
-  console.log(chalk.yellow('⚠️ Uyarı: Access token süresi dolmuş olabilir. Yeni token almanız gerekebilir.'));
-}
-
+// Token kontrol kaldırıldı - otomatik refresh token ile hallediliyor
 // Hoşgeldin mesajı
 if (process.argv.length === 2) {
   console.log(chalk.blue.bold('\n🚀 OneDrive Explorer\'a Hoşgeldiniz!\n'));

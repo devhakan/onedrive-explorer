@@ -1,124 +1,197 @@
-# 🚀 OneDrive Explorer CLI
+# 🚀 OneDrive Explorer
 
-> OneDrive kurumsal hesabınız için basit ve etkili bir komut satırı aracı.
+Modern ve kullanıcı dostu OneDrive Business hesap explorer'ı. Rclone tabanlı, otomatik token yönetimi ile.
 
-OneDrive Explorer, Microsoft Graph API kullanarak OneDrive Business hesabınızdaki dosyaları listelemenizi ve aramanızı sağlar.
+## ✨ Özellikler
 
-## ✨ Temel Özellikler
+- 🔍 **Akıllı Arama** - Dosya ve klasörlerde hızlı arama
+- 📁 **Klasör Gezinti** - İnteraktif klasör tarama
+- 📊 **Detaylı Bilgi** - Dosya boyutları, tarihleri ve metadata
+- 🔗 **Link Oluşturma** - Paylaşım ve görüntüleme linkleri
+- ⬇️ **Dosya İndirme** - Doğrudan dosya indirme
+- 🎮 **İnteraktif Mod** - Menü tabanlı kullanım
+- 🔄 **Otomatik Token Yenileme** - Sorunsuz erişim
 
-- **Dosya Listeleme**: Belirtilen bir klasör veya ana dizindeki dosyaları ve klasörleri listeler.
-- **Dosya Arama**: Anahtar kelime ile dosyaları arar.
+## 📋 Gereksinimler
 
-## 🛠️ Kurulum
+- **Node.js** (v14 veya üzeri)
+- **rclone** ([İndir](https://rclone.org/downloads/))
+- **OneDrive Business** hesabı
 
-### Gereksinimler
-- Node.js v14.0.0 veya üzeri
-- npm
-- OneDrive Business hesabı
-- Microsoft Graph API `accessToken` ve `driveId`
+## 🚀 Kurulum
 
-### Kurulum Adımları
-
-1.  **Projeyi klonlayın:**
-    ```bash
-    git clone https://github.com/your-username/onedrive-explorer.git
-    cd onedrive-explorer
-    ```
-
-2.  **Bağımlılıkları yükleyin:**
-    ```bash
-    npm install
-    ```
-
-3.  **Yapılandırmayı güncelleyin:**
-    Projenin ana dizininde bulunan `config.js` dosyasını açın ve kendi bilgilerinizi girin.
-
-## ⚙️ Yapılandırma
-
-`config.js` dosyası projenin çalışması için kritik öneme sahiptir.
-
-```javascript
-// config.js
-const config = {
-  // Microsoft Graph API'den alınan geçerli bir Access Token.
-  // Bu token'ın 'Files.ReadWrite.All', 'Sites.Read.All' ve 'User.Read' gibi izinlere sahip olması gerekir.
-  accessToken: "PASTE_YOUR_ACCESS_TOKEN_HERE",
-
-  // OneDrive'ınızın Drive ID'si.
-  // Graph Explorer (https://developer.microsoft.com/en-us/graph/graph-explorer) üzerinden
-  // https://graph.microsoft.com/v1.0/me/drive sorgusu ile elde edilebilir.
-  driveId: "PASTE_YOUR_DRIVE_ID_HERE",
-  
-  // Diğer ayarlar...
-};
-
-module.exports = config;
+### 1. Projeyi İndirin
+```bash
+git clone <repo-url>
+cd onedrive-explorer
 ```
 
-**ÖNEMLİ:** `accessToken` süresi dolabilir. Eğer `Insufficient privileges` gibi hatalar alıyorsanız, token'ınızı yenilemeniz gerekir.
+### 2. Bağımlılıkları Yükleyin
+```bash
+npm install
+```
+
+### 3. Rclone Konfigürasyonu
+OneDrive hesabınızı rclone ile yapılandırın:
+```bash
+rclone config
+```
+
+Yapılandırma sırasında:
+- **Storage türü:** Microsoft OneDrive seçin
+- **Client ID/Secret:** Varsayılan değerleri kullanabilirsiniz
+- **Hesap türü:** OneDrive Business seçin
+- **Yetkilendirme:** Tarayıcıda Microsoft hesabınızla giriş yapın
 
 ## 🎯 Kullanım
 
-Proje, `node cli.js` komutu ile çalıştırılır.
+### İlk Kurulum
+Rclone konfigürasyonunuzdan otomatik `.env` dosyası oluşturun:
+```bash
+node rclone-dump.js
+```
 
-### Komutlar
+Bu komut:
+- Mevcut OneDrive hesaplarınızı listeler
+- Seçtiğiniz hesabın token bilgilerini alır
+- `.env` dosyasını otomatik oluşturur
+- **Token süresi dolmuşsa otomatik yeniler**
 
-- **Dosyaları Listeleme:**
-  ```bash
-  # Ana dizini listeler
-  node cli.js list
+### Ana Komutlar
 
-  # Belirli bir klasör ID'sini listeler
-  node cli.js list --folderId FOLDER_ID
-  ```
+#### 💾 Hesap Bilgileri
+```bash
+node onedrive-explorer.js drive-info
+```
 
-- **Dosya Arama:**
-  ```bash
-  # "rapor" kelimesini içeren dosyaları arar
-  node cli.js search "rapor"
-  ```
+#### 🔍 Dosya Arama
+```bash
+# Basit arama
+node onedrive-explorer.js search "dosya_adi"
 
-- **Yardım:**
-  ```bash
-  node cli.js --help
-  ```
+# Pipe ile kullanım (interaktif olmayan)
+node onedrive-explorer.js search "dosya_adi" --quiet | head -20
+```
 
-## ⚠️ Bilinen Sorunlar
+#### 📁 Klasör Listeleme
+```bash
+# Kök klasör
+node onedrive-explorer.js list
 
-Bu proje geliştirme aşamasındadır ve bazı bilinen sorunları vardır:
+# Belirli klasör (klasör ID ile)
+node onedrive-explorer.js list KLASOR_ID
+```
 
-1.  **Yetkilendirme Hataları**: `accessToken` geçerli değilse veya yeterli yetkilere sahip değilse, `Insufficient privileges` hatası alabilirsiniz. Token'ınızın güncel ve doğru kapsamlara sahip olduğundan emin olun.
-2.  **Arama Hataları**: Microsoft Graph API, bazı özel karakterler içeren veya boş arama sorgularında `A potentially dangerous Request.Path` hatası döndürebilir.
-3.  **İnteraktif Mod**: İnteraktif mod (`interactive` komutu) şu anda bozuktur ve `inquirer.prompt is not a function` hatası vermektedir. Bu özellik gelecek versiyonlarda düzeltilecektir.
+#### 🎮 İnteraktif Mod
+```bash
+node onedrive-explorer.js interactive
+```
+
+#### 🔎 Gelişmiş Arama
+```bash
+node onedrive-explorer.js advanced-search
+```
+
+## 📖 Komut Detayları
+
+### Arama Seçenekleri
+- **--quiet (-q):** Sadece sonuçları göster, menü gösterme
+- Dosya türü filtreleme (PDF, Word, Excel, vb.)
+- Tarih aralığı filtreleme
+- Boyut sınırlandırması
+
+### Dosya İşlemleri
+- 📊 Detaylı dosya bilgileri
+- 🔗 Görüntüleme linki oluşturma
+- 🔗 Paylaşım linki oluşturma (okuma/yazma)
+- ⬇️ Dosya indirme
+- 👁️ Tarayıcıda önizleme
+
+## 🔧 Token Yönetimi
+
+### Otomatik Yenileme
+Script, token durumunu otomatik kontrol eder:
+- Token süresi dolmuşsa → otomatik yeniler
+- 10 dakika içinde dolacaksa → otomatik yeniler
+- Rclone'un kendi yenileme mekanizmasını kullanır
+
+### Manuel Yenileme
+Gerekirse token'ları manuel yenileyebilirsiniz:
+```bash
+# Tüm hesapların token'larını yenile
+rclone about hesap-adi:
+
+# Sonra .env dosyasını güncelle
+node rclone-dump.js
+```
+
+## 📁 Proje Yapısı
+
+```
+onedrive-explorer/
+├── onedrive-explorer.js           # Ana uygulama
+├── rclone-dump.js                 # Token yönetimi ve kurulum
+├── lib/
+│   ├── onedrive-api.js            # OneDrive API wrapper
+│   └── utils.js                   # Yardımcı fonksiyonlar
+├── examples/
+│   └── basic-usage.js             # Örnek kullanım
+├── package.json                   # Proje bağımlılıkları
+└── README.md
+```
+
+## 🚨 Sorun Giderme
+
+### Token Hatası
+```bash
+# 1. Token'ları yenile
+rclone about hesap-adi:
+
+# 2. .env dosyasını güncelle
+node rclone-dump.js
+```
+
+### Hesap Bulunamadı
+```bash
+# Rclone konfigürasyonunu kontrol et
+rclone config show
+
+# Yeni hesap ekle
+rclone config
+```
+
+### Bağlantı Hatası
+- İnternet bağlantınızı kontrol edin
+- Rclone'un güncel olduğundan emin olun
+- Microsoft hesabınızın aktif olduğunu kontrol edin
+
+## 🔒 Güvenlik
+
+- Token bilgileri sadece lokal `.env` dosyasında saklanır
+- Microsoft'un resmi OAuth2 akışı kullanılır
+- Hassas bilgiler repository'de yer almaz
+
+## 📝 Lisans
+
+MIT License
 
 ## 🤝 Katkıda Bulunma
 
-Katkılarınız için açığım! Lütfen bir pull request açmaktan çekinmeyin.
+1. Fork edin
+2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
+3. Commit yapın (`git commit -m 'Add amazing feature'`)
+4. Push edin (`git push origin feature/amazing-feature`)
+5. Pull Request oluşturun
 
-## 📋 Yapılacaklar
+## 📞 Destek
 
-- [ ] Refresh token otomatik yenileme
-- [ ] Toplu dosya indirme
-- [ ] Dosya yükleme özelliği
-- [ ] Klasör oluşturma/silme
-- [ ] Dosya paylaşım yönetimi
-- [ ] Export/import özelliği
-- [ ] Dosya önizleme
-- [ ] Arama geçmişi
-- [ ] Favori dosyalar
-- [ ] Dosya etiketleme
 
-## 📄 Lisans
-
-MIT License - Detaylar için `LICENSE` dosyasına bakın.
 
 ---
 
-### 🚀 Hemen başlayın:
-
+**⚡ Hızlı Başlangıç:**
 ```bash
 npm install
-node cli.js interactive
+node rclone-dump.js  # Kurulum
+node onedrive-explorer.js interactive  # Kullanım
 ```
-
-**Şıkır şıkır dosya yönetiminin tadını çıkarın!** 🎉 

@@ -1,3 +1,6 @@
+// .env dosyasını yükle
+require('dotenv').config();
+
 const OneDriveAPI = require('../lib/onedrive-api');
 const Utils = require('../lib/utils');
 
