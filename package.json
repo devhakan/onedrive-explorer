@@ -1,0 +1,55 @@
+{
+  "name": "onedrive-explorer",
+  "version": "1.0.0",
+  "description": "🚀 Modern OneDrive Business CLI explorer with smart search, file management, and automatic token handling via rclone",
+  "main": "onedrive-explorer.js",
+  "bin": {
+    "onedrive-explorer": "./onedrive-explorer.js",
+    "ode": "./onedrive-explorer.js"
+  },
+  "scripts": {
+    "start": "node onedrive-explorer.js",
+    "setup": "node rclone-dump.js",
+    "interactive": "node onedrive-explorer.js interactive",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "onedrive",
+    "onedrive-business", 
+    "microsoft-graph",
+    "rclone",
+    "cli",
+    "file-explorer",
+    "file-manager",
+    "download",
+    "search",
+    "interactive",
+    "token-management"
+  ],
+  "author": "Your Name",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/onedrive-explorer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/onedrive-explorer/issues"
+  },
+  "homepage": "https://github.com/yourusername/onedrive-explorer#readme",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bytes": "^3.1.2",
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "dotenv": "^16.5.0",
+    "inquirer": "^8.2.7",
+    "moment": "^2.29.4",
+    "node-fetch": "^2.7.0",
+    "open": "^8.4.0",
+    "ora": "^5.4.1",
+    "table": "^6.8.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
