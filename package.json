@@ -15,7 +15,6 @@
   },
   "keywords": [
     "onedrive",
-    "onedrive-business", 
     "microsoft-graph",
     "rclone",
     "cli",
@@ -26,15 +25,6 @@
     "interactive",
     "token-management"
   ],
-  "author": "Your Name",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/yourusername/onedrive-explorer.git"
-  },
-  "bugs": {
-    "url": "https://github.com/yourusername/onedrive-explorer/issues"
-  },
-  "homepage": "https://github.com/yourusername/onedrive-explorer#readme",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.6.0",
